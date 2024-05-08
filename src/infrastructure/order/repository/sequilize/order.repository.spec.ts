@@ -36,7 +36,7 @@ describe("Order repository test", () => {
     await sequelize.close();
   });
 
-  it("should create a new order", async () => {
+  async function createDefaultOrder(): Promise<Order> {
     const customerRepository = new CustomerRepository();
     const customer = new Customer("123", "Customer 1");
     const address = new Address("Street 1", 1, "Zipcode 1", "City 1");
@@ -55,7 +55,11 @@ describe("Order repository test", () => {
       2
     );
 
-    const order = new Order("123", "123", [orderItem]);
+    return new Order("123", "123", [orderItem]);
+  } 
+
+  it("should create a new order", async () => {
+    const order = await createDefaultOrder();
 
     const orderRepository = new OrderRepository();
     await orderRepository.create(order);
@@ -65,6 +69,7 @@ describe("Order repository test", () => {
       include: ["items"],
     });
 
+    const orderItem = order.items[0];
     expect(orderModel.toJSON()).toStrictEqual({
       id: "123",
       customer_id: "123",
@@ -81,4 +86,43 @@ describe("Order repository test", () => {
       ],
     });
   });
+
+  it("should update a order", async () => {
+    const order = await createDefaultOrder();
+
+    const orderRepository = new OrderRepository();
+    await orderRepository.create(order);
+
+    const productRepository = new ProductRepository();
+    const product = new Product("456", "Product 2", 20);
+    await productRepository.create(product);
+
+    const orderItem = new OrderItem(
+      "2",
+      product.name,
+      product.price,
+      product.id,
+      5
+    );
+
+    order.items.push(orderItem);
+    
+    orderRepository.update(order);
+
+    const orderResult = await orderRepository.find(order.id);
+
+    expect(order).toStrictEqual(orderResult);
+  });
+
+  it("should find a order", async () => {
+    const order = await createDefaultOrder();
+
+    const orderRepository = new OrderRepository();
+    await orderRepository.create(order);
+
+    const orderResult = await orderRepository.find(order.id);
+
+    expect(order).toStrictEqual(orderResult);
+
+  })
 });
