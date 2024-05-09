@@ -19,7 +19,7 @@ describe("Order repository test", () => {
     sequelize = new Sequelize({
       dialect: "sqlite",
       storage: ":memory:",
-      logging: false,
+      logging: console.log,
       sync: { force: true },
     });
 
@@ -32,34 +32,33 @@ describe("Order repository test", () => {
     await sequelize.sync();
   });
 
-  afterEach(async () => {
+  afterAll(async () => {
+    console.log("closing...")
     await sequelize.close();
   });
 
-  async function createDefaultOrder(): Promise<Order> {
-    const customerRepository = new CustomerRepository();
-    const customer = new Customer("123", "Customer 1");
-    const address = new Address("Street 1", 1, "Zipcode 1", "City 1");
+  async function createOrder(customerRepository: CustomerRepository = new CustomerRepository(), productRepository: ProductRepository = new ProductRepository(), id: string = "123", num: string = "1"): Promise<Order> {
+    const customer = new Customer(id, "Customer " + num);
+    const address = new Address("Street " + num, 1, "Zipcode " + num, "City " + num);
     customer.changeAddress(address);
     await customerRepository.create(customer);
 
-    const productRepository = new ProductRepository();
-    const product = new Product("123", "Product 1", 10);
+    const product = new Product(id, "Product " + num, 10);
     await productRepository.create(product);
 
     const orderItem = new OrderItem(
-      "1",
+      id,
       product.name,
       product.price,
       product.id,
       2
     );
 
-    return new Order("123", "123", [orderItem]);
+    return new Order(id, id, [orderItem]);
   } 
 
   it("should create a new order", async () => {
-    const order = await createDefaultOrder();
+    const order = await createOrder();
 
     const orderRepository = new OrderRepository();
     await orderRepository.create(order);
@@ -88,13 +87,14 @@ describe("Order repository test", () => {
   });
 
   it("should update a order", async () => {
-    const order = await createDefaultOrder();
+    const customerRepository = new CustomerRepository();
+    const productRepository = new ProductRepository();
+    const order = await createOrder(customerRepository, productRepository);
 
     const orderRepository = new OrderRepository();
     await orderRepository.create(order);
 
-    const productRepository = new ProductRepository();
-    const product = new Product("456", "Product 2", 20);
+    const product = new Product("456", "Product 2", 30);
     await productRepository.create(product);
 
     const orderItem = new OrderItem(
@@ -115,7 +115,7 @@ describe("Order repository test", () => {
   });
 
   it("should find a order", async () => {
-    const order = await createDefaultOrder();
+    const order = await createOrder();
 
     const orderRepository = new OrderRepository();
     await orderRepository.create(order);
@@ -123,6 +123,23 @@ describe("Order repository test", () => {
     const orderResult = await orderRepository.find(order.id);
 
     expect(order).toStrictEqual(orderResult);
+
+  })
+
+  it("should find all orders", async () => {
+    const customerRepository = new CustomerRepository();
+    const productRepository = new ProductRepository();
+    const orderRepository = new OrderRepository();
+    const order1 = await createOrder(customerRepository, productRepository);
+    await orderRepository.create(order1);
+    const order2 = await createOrder(customerRepository, productRepository, "456", "2");
+    await orderRepository.create(order2);
+
+    const orders = [order1, order2];
+    
+    const ordersResult = await orderRepository.findAll();
+
+    expect(orders).toStrictEqual(ordersResult);
 
   })
 });
